@@ -133,7 +133,8 @@ docker compose logs -f app    # 로그 보기
 ```
 
 - 업데이트: 코드를 받은 뒤 `docker compose up -d --build`.
-- 바깥 포트는 `.env`의 `HOST_PORT`로 바꿉니다 (기본 8000).
+- 바깥 포트는 `.env`의 `HOST_PORT`로 바꿉니다 (기본 8000). 이 포트는 `docker-compose.override.yml`이 엽니다.
+- **Coolify:** Build Pack을 Docker Compose로, 환경변수에 `LINER_API_KEY` 등을 넣고, `app` 서비스의 Domains에 `https://도메인:8000`(뒤의 `:8000`은 컨테이너 포트, 외부는 443). Coolify는 `docker-compose.yml`만 읽어서 호스트 포트를 열지 않으므로 서버의 다른 앱과 포트가 겹치지 않습니다.
 - 컨테이너는 30초마다 `/health`로 상태를 확인하고, 꺼지면 다시 켜집니다.
 - **휴대폰 설치(PWA)는 HTTPS 주소에서만 됩니다.** 앞단에 HTTPS를 붙이세요: Caddy·Nginx 리버스 프록시, Cloudflare Tunnel, 또는 Coolify·Railway 같은 플랫폼의 도메인 기능.
 

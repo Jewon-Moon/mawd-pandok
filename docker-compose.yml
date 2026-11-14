@@ -1,5 +1,7 @@
 # 배포: cp .env.example .env (LINER_API_KEY 입력) → docker compose up -d --build
-# 값은 같은 폴더의 .env에서 읽습니다. 휴대폰 설치(PWA)는 HTTPS 주소에서만 되니 앞단에 HTTPS(Caddy·Nginx·Cloudflare Tunnel 등)를 붙이세요.
+# 값은 같은 폴더의 .env(Coolify는 Environment Variables)에서 읽습니다.
+# 호스트 포트는 열지 않습니다. Coolify 등 프록시가 컨테이너 8000번으로 직접 연결하므로 서버의 다른 앱과 포트가 겹치지 않습니다.
+# 프록시 없이 서버에서 직접 띄울 때는 docker-compose.override.yml이 자동으로 함께 읽혀 HOST_PORT를 엽니다.
 services:
   app:
     build: .
@@ -7,7 +9,7 @@ services:
       LINER_API_KEY: ${LINER_API_KEY:?LINER_API_KEY를 .env에 넣어 주세요}
       FOODSAFETY_API_KEY: ${FOODSAFETY_API_KEY:-}
       DECISION_MODEL: ${DECISION_MODEL:-perplexity/pplx-decider-v1.2}
-      PORT: 8000 # 컨테이너 안 포트는 고정. 바깥 포트는 HOST_PORT
-    ports:
-      - "${HOST_PORT:-8000}:8000"
+      PORT: 8000
+    expose:
+      - "8000"
     restart: unless-stopped

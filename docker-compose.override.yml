@@ -1,0 +1,6 @@
+# 프록시(Coolify 등) 없이 서버 한 대에서 직접 실행할 때만: `docker compose up`이 이 파일을 자동으로 함께 읽어 호스트 포트를 엶.
+# Coolify는 docker-compose.yml만 지정해서(-f) 실행하므로 이 파일을 쓰지 않음 → 포트 충돌 없음
+services:
+  app:
+    ports:
+      - "${HOST_PORT:-8000}:8000"
