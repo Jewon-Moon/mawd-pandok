@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>판독 · 영양제 광고 판독기</title>
+<meta name="description" content="영양제·건강식품 광고 문구를 식약처 인정 기능성과 논문으로 대조해 드려요.">
+<meta name="theme-color" content="#1f3a8a" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11151f" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="판독">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* layout: 종이 성적서 위에 도장을 찍는 느낌. 위에서 아래로 입력 → 진행 단계 → 판독 도장 → 근거 순서 */
+:root{
+  --paper:#f6f3ea; --sheet:#fffdf8; --ink:#1a1f2b; --muted:#6b6f78; --line:#e4dfd2; --line-strong:#cfc8b6;
+  --brand:#1f3a8a; --brand-soft:#e6eaf6; --brand-ink:#fff;
+  --danger:#c0322b; --danger-soft:#fbe8e5; --warn:#b4650a; --warn-soft:#fcefdc;
+  --ok:#21794a; --ok-soft:#e2f2e8; --hold:#6b6f78; --hold-soft:#ecebe5;
+  --font:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --r:16px; --shadow:0 1px 0 rgba(26,31,43,.04),0 8px 24px -12px rgba(26,31,43,.12);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --paper:#11151f; --sheet:#181d29; --ink:#eceae4; --muted:#9a9ea8; --line:#262c3a; --line-strong:#353c4d;
+  --brand:#8ea6ff; --brand-soft:#1e2742; --brand-ink:#0d1220;
+  --danger:#ff8a80; --danger-soft:#3a1d1d; --warn:#f3b05a; --warn-soft:#382912;
+  --ok:#7fd6a2; --ok-soft:#173023; --hold:#a8acb5; --hold-soft:#242936;
+  --shadow:0 1px 0 rgba(0,0,0,.2),0 10px 30px -14px rgba(0,0,0,.6); color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.6;letter-spacing:-.01em;
+  padding:max(20px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) calc(110px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+main{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+a{color:var(--brand)}
+button{font:inherit;cursor:pointer;border:0;color:inherit;background:none}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+[hidden]{display:none!important}
+
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px 6px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.35rem;letter-spacing:-.03em}
+.brand img{width:34px;height:34px;border-radius:9px}
+.install{font-size:.85rem;font-weight:600;color:var(--brand);background:var(--brand-soft);padding:7px 12px;border-radius:999px}
+.hero h1{margin:6px 0 6px;font-size:clamp(1.6rem,6vw,2.2rem);line-height:1.25;letter-spacing:-.04em;font-weight:800;text-wrap:balance}
+.hero h1 em{font-style:normal;color:var(--brand)}
+.hero p{margin:0;color:var(--muted);max-width:52ch}
+
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.sheet h2{margin:0;font-size:1rem;font-weight:700;display:flex;align-items:center;gap:8px}
+.sheet h2 .n{font-size:.75rem;font-weight:700;color:var(--muted);background:var(--hold-soft);border-radius:999px;padding:1px 8px}
+.field{position:relative}
+textarea{width:100%;min-height:140px;resize:vertical;font:inherit;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 14px 44px;line-height:1.55}
+textarea::placeholder,input::placeholder{color:var(--muted);opacity:.8}
+.field .tools{position:absolute;left:10px;right:10px;bottom:10px;display:flex;gap:8px;align-items:center;justify-content:space-between;pointer-events:none}
+.field .tools>*{pointer-events:auto}
+.chipbtn{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;font-weight:600;padding:6px 10px;border-radius:999px;background:var(--sheet);border:1px solid var(--line);color:var(--ink)}
+.chipbtn svg{width:16px;height:16px}
+.count{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=text]{width:100%;font:inherit;color:inherit;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.thumb{display:flex;align-items:center;gap:10px;font-size:.88rem;color:var(--muted);background:var(--paper);border:1px dashed var(--line-strong);border-radius:12px;padding:8px}
+.thumb img{width:56px;height:56px;object-fit:cover;border-radius:8px}
+.thumb button{margin-left:auto;font-size:.82rem;color:var(--danger);font-weight:600;padding:6px 8px}
+.examples{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -2px;padding:2px}
+.examples::-webkit-scrollbar{display:none}
+.examples span{font-size:.8rem;color:var(--muted);align-self:center;white-space:nowrap}
+.ex{white-space:nowrap;font-size:.85rem;font-weight:600;padding:7px 12px;border-radius:999px;background:var(--brand-soft);color:var(--brand)}
+.err{color:var(--danger);font-size:.9rem;font-weight:500;margin:0;min-height:0}
+.err:empty{display:none}
+
+.cta{position:fixed;left:0;right:0;bottom:0;z-index:5;padding:12px max(16px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  background:linear-gradient(to top,var(--paper) 70%,transparent)}
+.cta button{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;max-width:720px;margin:0 auto;height:54px;border-radius:14px;background:var(--brand);color:var(--brand-ink);font-weight:700;font-size:1.05rem;box-shadow:0 10px 24px -10px var(--brand)}
+.cta button:disabled{opacity:.6;cursor:progress}
+
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;list-style:none;margin:0;padding:0}
+.steps li{font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.steps li::before{content:"";height:4px;border-radius:2px;background:var(--line)}
+.steps li.on{color:var(--ink);font-weight:600}
+.steps li.on::before{background:var(--brand);animation:pulse 1.2s ease-in-out infinite}
+.steps li.done::before{background:var(--brand)}
+@keyframes pulse{50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.steps li.on::before{animation:none}}
+
+.verdict{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+.stamp{width:116px;height:116px;border-radius:50%;display:grid;place-items:center;text-align:center;transform:rotate(-8deg);
+  border:4px solid currentColor;box-shadow:inset 0 0 0 3px var(--sheet),inset 0 0 0 5px currentColor;font-weight:800;line-height:1.1;font-size:1.15rem;letter-spacing:-.03em}
+.stamp small{display:block;font-size:.62rem;font-weight:700;letter-spacing:.1em;margin-bottom:4px;opacity:.8}
+.stamp.pending{color:var(--line-strong)}
+.stamp.pop{animation:stamp .35s cubic-bezier(.2,1.6,.4,1)}
+@keyframes stamp{from{transform:rotate(-8deg) scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){.stamp.pop{animation:none}}
+.tally{display:flex;flex-wrap:wrap;gap:6px}
+.tally span{border-radius:999px;padding:6px 12px;font-size:.88rem;font-weight:600}
+.tally b{font-variant-numeric:tabular-nums;margin-left:2px}
+.folds{padding:4px 18px;gap:0}
+.folds details{border-top:1px solid var(--line)}
+.folds details:first-child{border-top:0}
+.folds summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:15px 0;font-weight:700;font-size:.95rem}
+.folds summary::-webkit-details-marker{display:none}
+.folds summary em{font-style:normal;font-weight:500;font-size:.85rem;color:var(--muted);margin-left:auto}
+.folds summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 4px 4px 4px;transition:transform .2s}
+.folds details[open] summary::after{transform:rotate(-135deg);margin-bottom:-2px}
+.folds details>div{padding-bottom:16px}
+.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.more summary{cursor:pointer;font-size:.85rem;color:var(--muted);padding:2px 0}
+.more input{margin-top:8px}
+.c-danger{color:var(--danger)}.c-warn{color:var(--warn)}.c-ok{color:var(--ok)}.c-hold{color:var(--hold)}
+.b-danger{background:var(--danger-soft);color:var(--danger)}.b-warn{background:var(--warn-soft);color:var(--warn)}
+.b-ok{background:var(--ok-soft);color:var(--ok)}.b-hold{background:var(--hold-soft);color:var(--hold)}
+
+.alert{display:flex;gap:12px;border-radius:var(--r);padding:14px 16px;font-size:.92rem;line-height:1.55}
+.alert svg{flex:none;width:22px;height:22px;margin-top:1px}
+
+.claim{display:flex;flex-direction:column;gap:6px;padding:14px 0;border-top:1px solid var(--line)}
+.claim:first-child{border-top:0;padding-top:2px}
+.claim .head{display:flex;gap:10px;align-items:flex-start}
+.tag{flex:none;font-size:.74rem;font-weight:800;border-radius:6px;padding:3px 8px;border:1.5px solid currentColor;background:transparent;letter-spacing:-.01em}
+.claim q{font-weight:700;quotes:"“" "”";line-height:1.45}
+.claim p{margin:0;font-size:.86rem;color:var(--muted)}
+.meter{display:flex;align-items:center;gap:10px;font-size:.78rem;font-variant-numeric:tabular-nums}
+.meter span{color:var(--muted)}
+.meter i{flex:1;height:6px;border-radius:3px;background:var(--hold-soft);overflow:hidden;position:relative}
+.meter i::after{content:"";position:absolute;inset:0;width:var(--w);background:currentColor;border-radius:3px}
+.skeleton{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--hold-soft),var(--line),var(--hold-soft));background-size:200% 100%;animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skeleton{animation:none}}
+
+.src{display:flex;flex-direction:column;gap:14px;font-size:.9rem}
+.src .item{display:flex;flex-direction:column;gap:3px;min-width:0}
+.src a{font-weight:600;text-decoration:none;overflow-wrap:anywhere}
+.src a:hover{text-decoration:underline}
+.src p{margin:0;color:var(--muted);font-size:.85rem;overflow-wrap:anywhere}
+.badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{font-size:.7rem;font-weight:700;border-radius:6px;padding:2px 7px;background:var(--hold-soft);color:var(--muted)}
+.badge.gov{background:var(--brand-soft);color:var(--brand)}
+.ing{font-weight:700;font-size:.95rem}
+.official{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.official b{font-size:.92rem}
+.grade{display:flex;gap:14px;align-items:flex-start}
+.grade .g{flex:none;width:52px;height:52px;border-radius:14px;display:grid;place-items:center;font-size:1.6rem;font-weight:800}
+.meta{font-size:.78rem;color:var(--muted);text-align:center;font-variant-numeric:tabular-nums}
+.foot{font-size:.8rem;color:var(--muted);line-height:1.6;margin:8px 2px 0}
+.ios{font-size:.85rem;background:var(--brand-soft);color:var(--ink);border-radius:12px;padding:10px 12px;display:flex;gap:8px;align-items:center}
+.ios button{margin-left:auto;color:var(--muted);font-size:1.1rem;padding:0 4px}
+
+@media (max-width:420px){.verdict{grid-template-columns:1fr;justify-items:center;text-align:center;padding-top:10px}.tally{width:100%}}
+@media (min-width:760px){body{padding-bottom:40px}.cta{position:static;background:none;padding:0}.cta button{max-width:none}}
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div class="brand"><img src="/icon.svg" alt="">판독</div>
+    <button class="install" id="installBtn" hidden>앱으로 설치</button>
+  </div>
+  <div class="ios" id="iosHint" hidden>
+    <span>홈 화면에 추가하면 앱처럼 쓸 수 있어요. Safari 아래 공유 버튼 → <b>홈 화면에 추가</b></span>
+    <button id="iosClose" aria-label="안내 닫기">×</button>
+  </div>
+
+  <section class="hero">
+    <h1>그 영양제 광고,<br><em>믿어도 될까요?</em></h1>
+    <p>식약처 기준과 논문으로 확인해 드려요.</p>
+  </section>
+
+  <section class="sheet" aria-label="광고 입력">
+    <div class="field">
+      <textarea id="ad" maxlength="5000" aria-label="광고 문구" placeholder="광고 문구나 캡처를 붙여넣으세요"></textarea>
+      <div class="tools">
+        <button class="chipbtn" id="photoBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="3"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>사진 올리기</button>
+        <span class="count" id="count">0 / 5,000</span>
+      </div>
+    </div>
+    <input type="file" id="img" accept="image/png,image/jpeg,image/webp" hidden>
+    <div class="thumb" id="thumb" hidden><img id="thumbImg" alt="올린 광고 이미지"><span id="thumbName"></span><button type="button" id="thumbDel">지우기</button></div>
+    <div class="examples" aria-label="예시 광고">
+      <span>예시</span>
+      <button class="ex" data-ex="0">눈 영양제</button>
+      <button class="ex" data-ex="1">다이어트 젤리</button>
+      <button class="ex" data-ex="2">유산균</button>
+    </div>
+    <details class="more"><summary>제품명 직접 입력</summary><input type="text" id="product" maxlength="100" placeholder="비우면 광고에서 찾아요" aria-label="제품명"></details>
+    <p class="err" id="err" role="alert"></p>
+  </section>
+
+  <div class="cta"><button id="go" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></svg><span id="goText">판독하기</span></button></div>
+
+  <section id="results" hidden style="display:flex;flex-direction:column;gap:18px" aria-live="polite">
+    <section class="sheet">
+      <ol class="steps" id="steps">
+        <li data-s="extract">문구 찾기</li><li data-s="lookup">자료 조회</li><li data-s="judge">대조·판정</li><li data-s="done">완료</li>
+      </ol>
+      <div class="verdict">
+        <div class="stamp pending" id="stamp"><div><small>판독 중</small>···</div></div>
+        <div class="tally" id="tally"></div>
+      </div>
+    </section>
+    <div id="endorse"></div>
+    <section class="sheet"><h2>문구별 판정 <span class="n" id="claimN">0</span></h2><div id="claims"></div></section>
+    <section class="sheet folds" aria-label="근거 자세히 보기">
+      <details><summary><span>식약처 인정 기능성</span><em id="sumReg"></em></summary><div class="src"><div id="registration"></div><div id="approved" class="src"></div></div></details>
+      <details><summary><span>논문 근거</span><em id="sumEvi"></em></summary><div id="evidence" class="src"></div></details>
+      <details><summary><span>최근 안전 소식</span><em id="sumSafe"></em></summary><div id="safety" class="src"></div></details>
+    </section>
+    <p class="meta" id="meta"></p>
+  </section>
+
+  <p class="foot">공개 자료로 만든 참고 정보예요. 진단·처방이나 법적 판단이 아니에요.</p>
+</main>
+
+
+<script>
+const EXAMPLES = [
+  '[한미루테인골드] 약사가 추천하는 눈 영양제! 하루 한 알이면 침침한 눈이 맑아지고 노안·백내장 걱정 끝. 루테인 20mg 고함량, 황반 건강까지 한 번에.',
+  "다이어트 젤리 '슬림핏' 먹는 위고비! 자는 동안 지방이 녹아요. 한 달 -10kg 보장. 가르시니아 함유. 당뇨·고혈압 있는 분도 OK",
+  '장 건강 끝판왕 프로바이오틱스 100억 CFU! 아토피·비염까지 잡아주는 면역 유산균. 의사들이 직접 먹는 그 제품, 장누수증후군 개선 효과.',
+];
+const VERDICT = {
+  danger: ['위험', 'danger', '질병 치료·약처럼 광고'],
+  warn: ['주의', 'warn', '인정된 효과보다 과장'],
+  hold: ['보류', 'hold', '단정하기 어려워요'],
+  ok: ['괜찮음', 'ok', '인정된 범위 안'],
+};
+const STAMP = {
+  danger: ['위험 광고', 'danger'], warn: ['과장 주의', 'warn'], hold: ['판단 보류', 'hold'], ok: ['문제 없음', 'ok'],
+};
+const GRADE = {
+  A: ['A', 'ok', '근거 강함'],
+  B: ['B', 'ok', '근거 중간'],
+  C: ['C', 'warn', '근거 약함'],
+  D: ['D', 'danger', '근거 없음'],
+  hold: ['?', 'hold', '결과가 엇갈림'],
+  none: ['–', 'hold', '논문 없음'],
+};
+const ICON = {
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 16.5h-19z"/><path d="M12 10v4M12 17.5v.01"/></svg>',
+};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeUrl = (u) => /^https?:\/\//.test(u || '') ? esc(u) : '#';
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+let imageDataUrl = null, counts = {}, running = false, safeCount = 0;
+
+/* ---------- 입력 ---------- */
+const updateCount = () => { $('count').textContent = `${$('ad').value.length.toLocaleString()} / 5,000`; };
+$('ad').addEventListener('input', () => { $('err').textContent = ''; updateCount(); });
+document.querySelectorAll('.ex').forEach((b) => b.onclick = () => { $('ad').value = EXAMPLES[b.dataset.ex]; $('product').value = ''; clearImage(); $('err').textContent = ''; updateCount(); });
+$('photoBtn').onclick = () => $('img').click();
+$('img').onchange = () => { if ($('img').files[0]) setImage($('img').files[0]); };
+$('thumbDel').onclick = clearImage;
+// 캡처 이미지를 글 상자에 바로 붙여넣기
+$('ad').addEventListener('paste', (e) => {
+  const f = [...(e.clipboardData?.files || [])].find((x) => /^image\/(png|jpeg|webp)$/.test(x.type));
+  if (f) { e.preventDefault(); setImage(f); }
+});
+function setImage(f) {
+  if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { $('err').textContent = 'PNG, JPG, WEBP 이미지만 올릴 수 있어요.'; return; }
+  if (f.size > 8 * 1024 * 1024) { $('err').textContent = '이미지가 8MB를 넘어요. 더 작은 이미지를 올려 주세요.'; return; }
+  const r = new FileReader();
+  r.onload = () => { imageDataUrl = r.result; $('thumbImg').src = r.result; $('thumbName').textContent = f.name || '붙여넣은 이미지'; $('thumb').hidden = false; $('err').textContent = ''; };
+  r.readAsDataURL(f);
+}
+function clearImage() { imageDataUrl = null; $('thumb').hidden = true; $('img').value = ''; }
+
+/* ---------- 결과 화면 ---------- */
+function reset() {
+  counts = { danger: 0, warn: 0, hold: 0, ok: 0 }; safeCount = 0;
+  ['claims', 'registration', 'approved', 'evidence', 'safety', 'endorse', 'meta'].forEach((id) => $(id).innerHTML = '');
+  ['registration', 'evidence', 'safety'].forEach((id) => $(id).innerHTML = '<div class="skeleton"></div><div class="skeleton" style="width:70%;margin-top:8px"></div>');
+  $('claims').innerHTML = '<div class="skeleton"></div><div class="skeleton" style="width:60%;margin-top:10px"></div>';
+  $('claimN').textContent = '0';
+  ['sumReg', 'sumEvi', 'sumSafe'].forEach((id) => $(id).textContent = '찾는 중');
+  document.querySelectorAll('.folds details').forEach((d) => d.open = false);
+  $('steps').hidden = false;
+  $('stamp').className = 'stamp pending'; $('stamp').innerHTML = '<div><small>판독 중</small>···</div>';
+  setStep('extract'); renderTally();
+}
+function renderTally() {
+  $('tally').innerHTML = ['danger', 'warn', 'hold', 'ok'].filter((k) => counts[k]).map((k) => `<span class="b-${VERDICT[k][1]}">${VERDICT[k][0]} <b>${counts[k]}</b></span>`).join('') || '<span class="b-hold">문구를 확인하는 중</span>';
+}
+function setStep(s) {
+  const order = ['extract', 'lookup', 'judge', 'done'], at = order.indexOf(s);
+  document.querySelectorAll('#steps li').forEach((li) => {
+    const i = order.indexOf(li.dataset.s);
+    li.className = i < at || s === 'done' ? 'done' : i === at ? 'on' : '';
+  });
+}
+function finalStamp() {
+  const k = counts.danger ? 'danger' : counts.warn ? 'warn' : counts.hold ? 'hold' : counts.ok ? 'ok' : null;
+  if (!k) return;
+  const [label, cls] = STAMP[k];
+  $('stamp').className = `stamp c-${cls} pop`;
+  $('stamp').innerHTML = `<div><small>판독 결과</small>${label}</div>`;
+}
+const removeSkeleton = (id) => $(id).querySelectorAll('.skeleton').forEach((s) => s.remove());
+
+const handlers = {
+  stage: (d) => { setStep(d.step); $('goText').textContent = d.label; },
+  extracted: (d) => {
+    $('claimN').textContent = d.claims.length;
+    $('claims').innerHTML = d.claims.map((c, i) => `<div class="claim" id="c${i}"><div class="head"><span class="tag c-hold">판독 중</span><q>${esc(c)}</q></div><div class="skeleton" style="width:80%"></div></div>`).join('') || '<p class="foot">효과를 주장하는 문구를 찾지 못했어요.</p>';
+  },
+  claim: (d) => {
+    const [label, cls, desc] = VERDICT[d.verdict];
+    counts[d.verdict]++; renderTally();
+    $('c' + d.index).innerHTML = `<div class="head"><span class="tag c-${cls}">${label}</span><q>${esc(d.claim)}</q></div>
+      <p>${esc(desc)}</p>`;
+  },
+  registration: (d) => {
+    let h;
+    if (d.status === 'found') {
+      const p = d.products[0];
+      h = `<div class="official"><div class="badges"><span class="badge gov">식약처 품목제조신고</span></div><b>건강기능식품으로 신고된 제품이에요</b><p>${esc(p.name)} · ${esc(p.company)} · 신고번호 ${esc(p.reportNo)}</p><p><b>신고된 기능성</b> ${esc(p.functionality)}</p>${p.caution ? `<p><b>섭취 시 주의</b> ${esc(p.caution)}</p>` : ''}</div>`;
+    } else if (d.status === 'similar') {
+      h = `<div class="official"><div class="badges"><span class="badge gov">식약처 품목제조신고</span></div><b>같은 이름의 신고 제품은 못 찾았어요</b><p>이름이 비슷한 제품: ${d.products.slice(0, 3).map((p) => esc(p.name)).join(', ')}. 포장에 "건강기능식품" 문구와 인증마크가 있는지 확인하세요.</p></div>`;
+    } else if (d.status === 'not_found') {
+      h = `<div class="official"><b>건강기능식품 신고 내역이 없어요</b><p>일반 식품일 수 있어요. 일반 식품이 건강기능식품처럼 효능을 광고하는 건 대표적인 부당광고 유형이에요.</p></div>`;
+    } else {
+      h = `<div class="official"><b>제품 신고 여부는 확인하지 못했어요</b><p>${d.productName ? '데모 서버는 식약처 공개 샘플 데이터라 일부 제품만 조회돼요.' : '광고에서 제품명을 찾지 못했어요.'} 포장의 "건강기능식품" 문구와 인증마크를 확인하세요.</p></div>`;
+    }
+    $('registration').innerHTML = h;
+    $('sumReg').textContent = { found: '신고된 제품', similar: '같은 제품 없음', not_found: '신고 없음' }[d.status] || '확인 불가';
+  },
+  approved: (d) => {
+    $('approved').insertAdjacentHTML('beforeend', `<div class="src"><span class="ing">${esc(d.ingredient)} 원료 자료</span>${d.items.slice(0, 2).map((i) => `<div class="item"><a href="${safeUrl(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a><div class="badges">${i.official ? '<span class="badge gov">식약처</span>' : '<span class="badge">비공식 출처</span>'}</div><p class="clamp">${esc(i.text)}</p></div>`).join('') || '<p>관련 자료를 찾지 못했어요.</p>'}</div>`);
+  },
+  evidence: (d) => {
+    removeSkeleton('evidence');
+    const [g, cls, desc] = GRADE[d.grade];
+    $('sumEvi').textContent = `${d.ingredient} ${g === '–' ? '없음' : g + '등급'}`;
+    $('evidence').insertAdjacentHTML('beforeend', `<div class="grade"><div class="g b-${cls}">${g}</div><div class="src" style="gap:10px;min-width:0"><div><span class="ing">${esc(d.ingredient)}</span><p style="margin-top:2px">${esc(desc)}</p></div>
+      ${d.papers.slice(0, 3).map((p) => `<div class="item"><a href="${safeUrl(p.url)}" target="_blank" rel="noopener" class="clamp">${esc(p.title)}</a><p>${esc([p.journal, String(p.year || '').slice(0, 4), p.citations != null ? '인용 ' + p.citations + '회' : ''].filter(Boolean).join(' · '))}</p></div>`).join('')}</div></div>`);
+  },
+  safety: (d) => {
+    removeSkeleton('safety');
+    safeCount += d.items.length;
+    $('sumSafe').textContent = safeCount ? `${safeCount}건` : '없음';
+    $('safety').insertAdjacentHTML('beforeend', `<div class="src"><span class="ing">${esc(d.ingredient)}</span>${d.items.map((i) => `<div class="item"><a href="${safeUrl(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a><div class="badges">${i.official ? '<span class="badge gov">정부 자료</span>' : ''}${i.date ? `<span class="badge">${esc(i.date)}</span>` : ''}</div><p class="clamp">${esc(i.text)}</p></div>`).join('') || '<p>최근 1년 안 회수·이상사례 소식이 없어요.</p>'}</div>`);
+  },
+  endorsement: (d) => {
+    if (!d.flagged) return;
+    $('endorse').innerHTML = `<div class="alert b-danger">${ICON.alert}<div><b>의사·약사 추천을 내세운 광고예요</b><br>식품 광고에서는 부당광고로 볼 수 있어요.</div></div>`;
+  },
+  done: (d) => {
+    setStep('done'); finalStamp(); $('steps').hidden = true;
+    ['sumReg', 'sumEvi', 'sumSafe'].forEach((id) => { if ($(id).textContent === '찾는 중') $(id).textContent = '없음'; });
+    ['evidence', 'safety', 'registration'].forEach((id) => { if ($(id).querySelector('.skeleton')) $(id).innerHTML = '<p class="foot" style="margin:0">찾은 자료가 없어요.</p>'; });
+    if (!$('claims').querySelector('.claim') && d.note) $('claims').innerHTML = `<p class="foot" style="margin:0">${esc(d.note)}</p>`;
+    const krw = Math.max(1, Math.round(d.costUsd * 1500));
+    $('meta').textContent = `판독 ${(d.ms / 1000).toFixed(1)}초 · 라이너 API 비용 약 ${krw}원`;
+  },
+  error: (d) => { $('err').textContent = d.message; },
+};
+
+async function run() {
+  if (running) return;
+  const text = $('ad').value.trim();
+  if (!text && !imageDataUrl) { $('err').textContent = '광고 문구를 붙여넣거나 광고 사진을 올려 주세요.'; $('ad').focus(); return; }
+  running = true; $('err').textContent = ''; $('go').disabled = true;
+  reset(); $('results').hidden = false;
+  $('results').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  try {
+    const res = await fetch('/api/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, productName: $('product').value, imageDataUrl }) });
+    if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.error || '서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.'); }
+    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const block = buf.slice(0, i); buf = buf.slice(i + 2);
+        const ev = /^event: (.+)$/m.exec(block)?.[1]; const data = /^data: (.+)$/m.exec(block)?.[1];
+        if (ev && data && handlers[ev]) handlers[ev](JSON.parse(data));
+      }
+    }
+  } catch (e) {
+    $('err').textContent = navigator.onLine ? e.message : '인터넷에 연결되어 있지 않아요. 연결 후 다시 판독해 주세요.';
+    $('results').hidden = true; window.scrollTo({ top: 0 });
+  } finally { running = false; $('go').disabled = false; $('goText').textContent = '다시 판독하기'; }
+}
+$('go').onclick = run;
+renderTally(); updateCount();
+
+/* ---------- 다른 앱에서 "공유하기"로 들어온 광고 문구 (manifest share_target) ---------- */
+{
+  const q = new URLSearchParams(location.search);
+  const shared = [q.get('title'), q.get('text'), q.get('url')].filter(Boolean).join('\n').trim();
+  if (shared) { $('ad').value = shared.slice(0, 5000); updateCount(); history.replaceState(null, '', '/'); run(); }
+}
+
+/* ---------- PWA: 서비스 워커 · 설치 ---------- */
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+let installEvent = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; $('installBtn').hidden = false; });
+$('installBtn').onclick = async () => { if (!installEvent) return; installEvent.prompt(); await installEvent.userChoice; installEvent = null; $('installBtn').hidden = true; };
+addEventListener('appinstalled', () => { $('installBtn').hidden = true; });
+// iOS Safari는 설치 버튼 이벤트가 없어 안내 문구로 대신
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone && !store.get('iosHintClosed')) $('iosHint').hidden = false;
+$('iosClose').onclick = () => { $('iosHint').hidden = true; store.set('iosHintClosed', '1'); };
+</script>
+</body>
+</html>

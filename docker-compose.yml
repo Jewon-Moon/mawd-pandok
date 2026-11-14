@@ -1,0 +1,13 @@
+# 배포: cp .env.example .env (LINER_API_KEY 입력) → docker compose up -d --build
+# 값은 같은 폴더의 .env에서 읽습니다. 휴대폰 설치(PWA)는 HTTPS 주소에서만 되니 앞단에 HTTPS(Caddy·Nginx·Cloudflare Tunnel 등)를 붙이세요.
+services:
+  app:
+    build: .
+    environment:
+      LINER_API_KEY: ${LINER_API_KEY:?LINER_API_KEY를 .env에 넣어 주세요}
+      FOODSAFETY_API_KEY: ${FOODSAFETY_API_KEY:-}
+      DECISION_MODEL: ${DECISION_MODEL:-perplexity/pplx-decider-v1.2}
+      PORT: 8000 # 컨테이너 안 포트는 고정. 바깥 포트는 HOST_PORT
+    ports:
+      - "${HOST_PORT:-8000}:8000"
+    restart: unless-stopped

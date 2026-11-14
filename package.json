@@ -1,0 +1,15 @@
+{
+  "name": "pandok",
+  "private": true,
+  "type": "module",
+  "description": "영양제 광고 판독기: 광고 문구를 식약처 인정 기능성과 논문 근거로 대조합니다 (라이너 API)",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.ts",
+    "dev": "node --watch --env-file-if-exists=.env src/server.ts",
+    "test": "node --test src/*.test.ts",
+    "eval": "node --env-file-if-exists=.env eval/run.ts"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
