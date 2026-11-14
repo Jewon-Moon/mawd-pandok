@@ -26,3 +26,13 @@ test('mentionsIngredient', () => {
   assert.equal(mentionsIngredient('Banaba leaf and corosolic acid in glucose control', 'Banaba leaf extract'), true);
   assert.equal(mentionsIngredient('Green tea catechins', 'Banaba leaf extract'), false); // leaf·extract만으로는 맞지 않음
 });
+
+test('createRateLimiter', async () => {
+  const { createRateLimiter } = await import('./limit.ts');
+  const allow = createRateLimiter(2, 1000);
+  assert.equal(allow('a', 0), true);
+  assert.equal(allow('a', 10), true);
+  assert.equal(allow('a', 20), false); // 1초 안에 3번째
+  assert.equal(allow('b', 20), true); // 다른 IP는 따로
+  assert.equal(allow('a', 1001), true); // 첫 기록이 1초 지나면 다시 허용
+});

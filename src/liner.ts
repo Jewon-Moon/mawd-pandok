@@ -18,16 +18,33 @@ function key(): string {
   return k;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function post(path: string, body: unknown, timeoutMs = 60_000): Promise<any> {
-  const res = await fetch(BASE + path, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`라이너 ${path} ${res.status}: ${text.slice(0, 300)}`);
-  return JSON.parse(text);
+  // 한도 초과(429)·일시 장애는 문서 권장대로 Retry-After + 지터를 두고 최대 3번 다시 시도
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(BASE + path, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const text = await res.text();
+    if (res.ok) return JSON.parse(text);
+    let retryable = res.status === 429 || res.status >= 500;
+    try { retryable = JSON.parse(text)?.error?.retryable ?? retryable; } catch {}
+    if (!retryable || attempt >= 3) throw new Error(`라이너 ${path} ${res.status}: ${text.slice(0, 300)}`);
+    const after = Number(res.headers.get('retry-after')) || 1;
+    await sleep(after * 1000 * 2 ** attempt + Math.random() * 400);
+  }
+}
+
+// Scholar는 계정 전체 초당 2회 한도라, 서버 안의 모든 판독이 한 줄로 서서 0.55초 간격으로 호출
+let scholarQueue: Promise<unknown> = Promise.resolve();
+function inScholarQueue<T>(job: () => Promise<T>): Promise<T> {
+  const run = scholarQueue.then(job, job);
+  scholarQueue = run.catch(() => {}).then(() => sleep(550));
+  return run;
 }
 
 export type SearchResult = { title: string; url: string; hostname: string; description: string; date: string; citationCount?: number; journal?: string; authors?: string[] };
@@ -40,7 +57,7 @@ export async function searchWeb(query: string, cost: Cost, opts: { max?: number;
 }
 
 export async function searchScholar(query: string, cost: Cost, max = 6): Promise<SearchResult[]> {
-  const j = await post('/tools/search/scholar', { query, max_results: max }, 30_000);
+  const j = await inScholarQueue(() => post('/tools/search/scholar', { query, max_results: max }, 30_000));
   cost.add(PRICE.scholar);
   // 논문 제목에 "&lt;i&gt;Garcinia&lt;/i&gt;" 같은 이스케이프된 태그가 섞여 와서 글자만 남김
   const plain = (s = '') => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/<[^>]*>/g, '');

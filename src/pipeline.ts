@@ -81,12 +81,16 @@ export async function runCheck(input: CheckInput, emit: Emit): Promise<void> {
 
   emit('stage', { step: 'lookup', label: '식약처 신고 정보와 논문을 찾는 중' });
 
+  // 조회 하나가 실패해도 판독 전체를 멈추지 않고, 그 칸만 비워 둔 채 끝까지 보여줌
+  let failed = 0;
+  const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> => p.catch((e) => { failed++; console.error(e); return fallback; });
+
   const registrationP = productName
     ? lookupProduct(productName).then((r) => { emit('registration', { productName, ...r }); return r; })
     : Promise.resolve(null).then(() => { emit('registration', { productName: '', status: 'unknown', keyType: 'none', products: [] }); return null; });
 
   const approvedP = Promise.all(ingredients.map(async (ing) => {
-    const results = await searchWeb(`${ing.ko} 기능성 내용 식품안전나라 건강기능식품`, cost, { max: 8 });
+    const results = await safe(searchWeb(`${ing.ko} 기능성 내용 식품안전나라 건강기능식품`, cost, { max: 8 }), []);
     // 기능성 문구가 실제로 들어 있는 식약처 자료를 앞으로
     const official = results.filter(isOfficial).sort((a, b) => Number(/기능성/.test(b.description)) - Number(/기능성/.test(a.description))).slice(0, 3);
     const items = (official.length ? official : results.slice(0, 2)).map((r) => ({ title: r.title, url: r.url, text: r.description, date: r.date, official: isOfficial(r) }));
@@ -96,7 +100,7 @@ export async function runCheck(input: CheckInput, emit: Emit): Promise<void> {
 
   // 최근 1년 안의 회수·이상사례·주의사항 변경. 고정 DB로는 따라갈 수 없는 부분이라 실시간 검색을 씀
   const safetyP = Promise.all(ingredients.map(async (ing) => {
-    const results = await searchWeb(`${ing.ko} 이상사례 회수 섭취 주의사항 식약처`, cost, { max: 6, dateRange: 'past_year' });
+    const results = await safe(searchWeb(`${ing.ko} 이상사례 회수 섭취 주의사항 식약처`, cost, { max: 6, dateRange: 'past_year' }), []);
     const items = results
       .filter((r) => (r.description.includes(ing.ko) || r.title.includes(ing.ko)) && !SOCIAL.test(r.hostname))
       .slice(0, 3)
@@ -107,8 +111,8 @@ export async function runCheck(input: CheckInput, emit: Emit): Promise<void> {
   const papersP = Promise.all(ingredients.map(async (ing) => {
     // 검색이 다른 성분 논문을 섞어 줄 때가 있어, 원료 이름이 제목·초록에 있는 논문만 씀. 없으면 단순한 검색어로 한 번 더
     const about = (list: SearchResult[]) => list.filter((p) => mentionsIngredient(`${p.title} ${p.description ?? ''}`, ing.en));
-    let papers = about(await searchScholar(`${ing.en} supplementation ${ing.effectEn} randomized controlled trial meta-analysis`, cost, 8));
-    if (!papers.length) papers = about(await searchScholar(`${ing.en} ${ing.effectEn}`, cost, 8));
+    let papers = about(await safe(searchScholar(`${ing.en} supplementation ${ing.effectEn} randomized controlled trial meta-analysis`, cost, 8), []));
+    if (!papers.length) papers = about(await safe(searchScholar(`${ing.en} ${ing.effectEn}`, cost, 8), []));
     return { ing, papers: papers.slice(0, 6) };
   }));
 
@@ -121,7 +125,7 @@ export async function runCheck(input: CheckInput, emit: Emit): Promise<void> {
   }, cost).then((a) => {
     const p = a.endorsement?.noul ?? 0;
     emit('endorsement', { probability: p, flagged: p >= 0.65 });
-  });
+  }).catch((e) => { failed++; console.error(e); });
 
   const [registration, approved] = await Promise.all([registrationP, approvedP]);
 
@@ -137,19 +141,20 @@ export async function runCheck(input: CheckInput, emit: Emit): Promise<void> {
   emit('stage', { step: 'judge', label: '문구마다 인정 범위와 대조하는 중' });
 
   const claimJobs = claims.map(async (claim, i) => {
-    emit('claim', { index: i, ...(await judgeClaim(claim, approvedText, cost)) });
+    const r = await safe(judgeClaim(claim, approvedText, cost), null);
+    emit('claim', r ? { index: i, ...r } : { index: i, claim, exceeds: 0.5, type: 'error', probabilities: {}, typeLabel: '일시적으로 판정하지 못했어요', verdict: 'hold' });
   });
 
   const evidenceJobs = papersP.then((list) => Promise.all(list.map(async ({ ing, papers }) => {
     let score = 0, confidence = 0;
     if (papers.length) {
-      const a = await decide({
+      const a = await safe(decide({
         ingredient: `${ing.ko} (${ing.en})`,
         claimed_effect: ing.effectEn,
         papers: papers.map((p) => ({ title: p.title, journal: p.journal ?? '', year: p.date, citations: p.citationCount ?? 0, abstract: short(p.description ?? '', 400) })),
       }, {
         strength: { type: 'score', instructions: '이 논문들은 해당 원료가 광고된 효과를 사람에게 낸다는 주장을 얼마나 뒷받침하는가?', criteria: EVIDENCE_LEVELS },
-      }, cost);
+      }, cost), {} as Record<string, any>);
       score = a.strength?.score ?? 0;
       confidence = a.strength?.confidence ?? 0;
     }
@@ -163,5 +168,5 @@ export async function runCheck(input: CheckInput, emit: Emit): Promise<void> {
   })));
 
   await Promise.all([...claimJobs, evidenceJobs, endorsementP, safetyP]);
-  emit('done', { costUsd: cost.total(), ms: Date.now() - started });
+  emit('done', { costUsd: cost.total(), ms: Date.now() - started, ...(failed ? { note: '일부 자료를 불러오지 못했어요. 잠시 뒤 다시 판독하면 채워질 수 있어요.' } : {}) });
 }

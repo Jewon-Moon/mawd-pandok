@@ -1,10 +1,22 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { runCheck } from './pipeline.ts';
+import { createRateLimiter } from './limit.ts';
 
 const PORT = Number(process.env.PORT) || 8000;
 const MAX_BODY = 8 * 1024 * 1024; // 이미지 포함 8MB
 const MAX_TEXT = 5000;
+// 공개 배포 보호: IP당 10분에 10회, 서버 전체 동시 판독 6건까지
+const allowIp = createRateLimiter(10, 10 * 60_000);
+const MAX_RUNNING = 6;
+let running = 0;
+// Cloudflare → Coolify 프록시를 거치므로 실제 IP는 헤더에 있음
+const clientIp = (req: import('node:http').IncomingMessage) =>
+  String(req.headers['cf-connecting-ip'] ?? '').trim() || String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+const sendError = (res: import('node:http').ServerResponse, status: number, error: string) => {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error }));
+};
 const PUBLIC = new URL('../public/', import.meta.url);
 // public/ 안의 이 파일들만 내보냄 (경로 조작 방지를 위해 이름 목록으로 고정)
 const STATIC: Record<string, string> = {
@@ -50,6 +62,8 @@ const server = createServer(async (req, res) => {
     return;
   }
   if (req.method === 'POST' && path === '/api/check') {
+    if (!allowIp(clientIp(req))) return sendError(res, 429, '판독 요청이 너무 많아요. 10분 뒤에 다시 시도해 주세요.');
+    if (running >= MAX_RUNNING) return sendError(res, 503, '지금 판독하는 사람이 많아요. 잠시 뒤 다시 시도해 주세요.');
     let input: { text?: unknown; productName?: unknown; imageDataUrl?: unknown };
     try {
       input = JSON.parse(await readBody(req));
@@ -67,6 +81,7 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    running++;
     res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
     const emit = (event: string, data: unknown) => { if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`); };
     try {
@@ -74,6 +89,8 @@ const server = createServer(async (req, res) => {
     } catch (e) {
       console.error(e);
       emit('error', { message: '판독 중 오류가 났어요. 잠시 뒤 다시 시도해 주세요.', detail: String((e as Error).message).slice(0, 200) });
+    } finally {
+      running--;
     }
     res.end();
     return;

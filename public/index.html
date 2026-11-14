@@ -351,7 +351,7 @@ const handlers = {
     ['evidence', 'safety', 'registration'].forEach((id) => { if ($(id).querySelector('.skeleton')) $(id).innerHTML = '<p class="foot" style="margin:0">찾은 자료가 없어요.</p>'; });
     if (!$('claims').querySelector('.claim') && d.note) $('claims').innerHTML = `<p class="foot" style="margin:0">${esc(d.note)}</p>`;
     const krw = Math.max(1, Math.round(d.costUsd * 1500));
-    $('meta').textContent = `판독 ${(d.ms / 1000).toFixed(1)}초 · 라이너 API 비용 약 ${krw}원`;
+    $('meta').textContent = `판독 ${(d.ms / 1000).toFixed(1)}초 · 라이너 API 비용 약 ${krw}원${d.note && $('claims').querySelector('.claim') ? ' · ' + d.note : ''}`;
   },
   error: (d) => { $('err').textContent = d.message; },
 };
